@@ -1,54 +1,65 @@
+// Declare globally accessible variables
+let userData;
+let stocksData;
+
+// Wait for the DOM to load
 document.addEventListener('DOMContentLoaded', () => {
-    const stocksData = JSON.parse(stockContent);
-    const userData = JSON.parse(userContent);
+    stocksData = JSON.parse(stockContent);
+    userData = JSON.parse(userContent);
 
-    // Ensure generateUserList is called with both userData and stocksData
-    generateUserList(userData, stocksData);
+    // Generate the user list
+    generateUserList(userData);
 
+    // Attach event listener to the user list
     const userList = document.querySelector('.user-list');
     if (userList) {
-        // Register click event once to handle user list clicks
-        userList.addEventListener('click', (event) => handleUserListClick(event, userData, stocksData));
+        userList.addEventListener('click', (event) => handleUserListClick(event));
     }
 });
 
-// Define `deleteButton` and `saveButton` properly
-const deleteButton = document.querySelector('#deleteButton');
-const saveButton = document.querySelector('#saveButton');
+// Select the delete and save buttons
+const deleteButton = document.querySelector('#btnDelete');
+const saveButton = document.querySelector('#btnSave');
 
-// Ensure delete button exists before adding event listener
+// Delete button functionality
 if (deleteButton) {
     deleteButton.addEventListener('click', (event) => {
         event.preventDefault();
+
         const userId = document.querySelector('#userID').value;
         const userIndex = userData.findIndex(user => user.id == userId);
 
-        if (userIndex !== -1) {  // Check if user exists
+        if (userIndex !== -1) {
             userData.splice(userIndex, 1);
-            generateUserList(userData, stocksData);  // Re-render list after delete
+            generateUserList(userData);
+
+            // Clear the form and portfolio display
+            clearForm();
+            clearPortfolio();
         } else {
             console.error("User not found for deletion.");
         }
     });
 }
 
-// Ensure save button exists before adding event listener
+// Save button functionality
 if (saveButton) {
     saveButton.addEventListener('click', (event) => {
         event.preventDefault();
 
         const id = document.querySelector('#userID').value;
+        const user = userData.find(u => u.id == id);
 
-        for (let i = 0; i < userData.length; i++) {
-            if (userData[i].id == id) {
-                userData[i].user.firstname = document.querySelector('#firstname').value;
-                userData[i].user.lastname = document.querySelector('#lastname').value;
-                userData[i].user.address = document.querySelector('#address').value;
-                userData[i].user.city = document.querySelector('#city').value;
-                userData[i].user.email = document.querySelector('#email').value;
+        if (user) {
+            user.user.firstname = document.querySelector('#firstname').value;
+            user.user.lastname = document.querySelector('#lastname').value;
+            user.user.address = document.querySelector('#address').value;
+            user.user.city = document.querySelector('#city').value;
+            user.user.email = document.querySelector('#email').value;
 
-                generateUserList(userData, stocksData);  // Re-render list after save
-            }
+            generateUserList(userData);
+        } else {
+            console.error("User not found for saving.");
         }
     });
 }
@@ -56,15 +67,14 @@ if (saveButton) {
 /**
  * Generates the user list
  * @param {*} users 
- * @param {*} stocks 
  */
-function generateUserList(users, stocks) {
+function generateUserList(users) {
     const userList = document.querySelector('.user-list');
     if (userList) {
-        userList.innerHTML = '';  // Clear out list before rendering
-        users.map(({ user, id }) => {
+        userList.innerHTML = ''; // Clear existing list
+        users.forEach(({ user, id }) => {
             const listItem = document.createElement('li');
-            listItem.innerText = user.lastname + ', ' + user.firstname;
+            listItem.innerText = `${user.lastname}, ${user.firstname}`;
             listItem.setAttribute('id', id);
             userList.appendChild(listItem);
         });
@@ -74,21 +84,19 @@ function generateUserList(users, stocks) {
 /**
  * Handles the click event on the user list
  * @param {*} event 
- * @param {*} users 
- * @param {*} stocks 
  */
-function handleUserListClick(event, users, stocks) {
+function handleUserListClick(event) {
     const userId = event.target.id;
-    const user = users.find(user => user.id == userId);
+    const user = userData.find(user => user.id == userId);
     if (user) {
         populateForm(user);
-        renderPortfolio(user, stocks);
+        renderPortfolio(user);
     }
 }
 
 /**
  * Populates the form with the user's data
- * @param {*} user 
+ * @param {*} data 
  */
 function populateForm(data) {
     const { user, id } = data;
@@ -103,43 +111,49 @@ function populateForm(data) {
 /**
  * Renders the portfolio items for the user
  * @param {*} user 
- * @param {*} stocks 
  */
-function renderPortfolio(user, stocks) {
+function renderPortfolio(user) {
     const { portfolio } = user;
     const portfolioDetails = document.querySelector('.portfolio-list');
-    portfolioDetails.innerHTML = '';  // Clear out list before rendering
+    if (portfolioDetails) {
+        portfolioDetails.innerHTML = ''; // Clear existing portfolio
 
-    portfolio.map(({ symbol, owned }) => {
-        const symbolEl = document.createElement('p');
-        const sharesEl = document.createElement('p');
-        const actionEl = document.createElement('button');
-        symbolEl.innerText = symbol;
-        sharesEl.innerText = owned;
-        actionEl.innerText = 'View';
-        actionEl.setAttribute('id', symbol);
-        portfolioDetails.appendChild(symbolEl);
-        portfolioDetails.appendChild(sharesEl);
-        portfolioDetails.appendChild(actionEl);
-    });
+        portfolio.forEach(({ symbol, owned }) => {
+            const symbolEl = document.createElement('p');
+            const sharesEl = document.createElement('p');
+            const actionEl = document.createElement('button');
 
-    // Attach the event listener once
-    portfolioDetails.addEventListener('click', (event) => {
-        if (event.target.tagName === 'BUTTON') {
-            viewStock(event.target.id, stocks);
-        }
-    }, { once: true });
+            symbolEl.innerText = symbol;
+            sharesEl.innerText = `Shares Owned: ${owned}`;
+            actionEl.innerText = 'View';
+            actionEl.setAttribute('id', symbol);
+
+            portfolioDetails.appendChild(symbolEl);
+            portfolioDetails.appendChild(sharesEl);
+            portfolioDetails.appendChild(actionEl);
+        });
+
+        // Remove existing event listeners to prevent duplication
+        const newPortfolioDetails = portfolioDetails.cloneNode(true);
+        portfolioDetails.parentNode.replaceChild(newPortfolioDetails, portfolioDetails);
+
+        // Attach event listener to the portfolio list
+        newPortfolioDetails.addEventListener('click', (event) => {
+            if (event.target.tagName === 'BUTTON') {
+                viewStock(event.target.id);
+            }
+        });
+    }
 }
 
 /**
  * Renders the stock information for the symbol
  * @param {*} symbol 
- * @param {*} stocks 
  */
-function viewStock(symbol, stocks) {
+function viewStock(symbol) {
     const stockArea = document.querySelector('.stock-form');
     if (stockArea) {
-        const stock = stocks.find(s => s.symbol == symbol);
+        const stock = stocksData.find(s => s.symbol == symbol);
 
         if (stock) {
             document.querySelector('#stockName').textContent = stock.name;
@@ -147,6 +161,34 @@ function viewStock(symbol, stocks) {
             document.querySelector('#stockIndustry').textContent = stock.subIndustry;
             document.querySelector('#stockAddress').textContent = stock.address;
             document.querySelector('#logo').src = `logos/${symbol}.svg`;
+        } else {
+            console.error("Stock not found.");
         }
+    }
+}
+
+/**
+ * Clears the user form fields
+ */
+function clearForm() {
+    document.querySelector('#userID').value = '';
+    document.querySelector('#firstname').value = '';
+    document.querySelector('#lastname').value = '';
+    document.querySelector('#address').value = '';
+    document.querySelector('#city').value = '';
+    document.querySelector('#email').value = '';
+}
+
+/**
+ * Clears the portfolio display
+ */
+function clearPortfolio() {
+    const portfolioDetails = document.querySelector('.portfolio-list');
+    if (portfolioDetails) {
+        portfolioDetails.innerHTML = '';
+    }
+    const stockArea = document.querySelector('.stock-form');
+    if (stockArea) {
+        stockArea.innerHTML = ''; // Or reset specific fields as needed
     }
 }

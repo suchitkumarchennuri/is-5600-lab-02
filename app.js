@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const userList = document.querySelector('.user-list');
     if (userList) {
+        // Register click event once to handle user list clicks
         userList.addEventListener('click', (event) => handleUserListClick(event, userData, stocksData));
     }
 });
@@ -21,8 +22,13 @@ if (deleteButton) {
         event.preventDefault();
         const userId = document.querySelector('#userID').value;
         const userIndex = userData.findIndex(user => user.id == userId);
-        userData.splice(userIndex, 1);
-        generateUserList(userData, stocksData);
+
+        if (userIndex !== -1) {  // Check if user exists
+            userData.splice(userIndex, 1);
+            generateUserList(userData, stocksData);  // Re-render list after delete
+        } else {
+            console.error("User not found for deletion.");
+        }
     });
 }
 
@@ -41,29 +47,27 @@ if (saveButton) {
                 userData[i].user.city = document.querySelector('#city').value;
                 userData[i].user.email = document.querySelector('#email').value;
 
-                generateUserList(userData, stocksData);
+                generateUserList(userData, stocksData);  // Re-render list after save
             }
         }
     });
 }
 
 /**
- * Generates the user list and registers click listener for portfolio
+ * Generates the user list
  * @param {*} users 
  * @param {*} stocks 
  */
 function generateUserList(users, stocks) {
     const userList = document.querySelector('.user-list');
     if (userList) {
-        userList.innerHTML = '';
+        userList.innerHTML = '';  // Clear out list before rendering
         users.map(({ user, id }) => {
             const listItem = document.createElement('li');
             listItem.innerText = user.lastname + ', ' + user.firstname;
             listItem.setAttribute('id', id);
             userList.appendChild(listItem);
         });
-
-        userList.addEventListener('click', (event) => handleUserListClick(event, users, stocks));
     }
 }
 
@@ -104,7 +108,7 @@ function populateForm(data) {
 function renderPortfolio(user, stocks) {
     const { portfolio } = user;
     const portfolioDetails = document.querySelector('.portfolio-list');
-    portfolioDetails.innerHTML = '';
+    portfolioDetails.innerHTML = '';  // Clear out list before rendering
 
     portfolio.map(({ symbol, owned }) => {
         const symbolEl = document.createElement('p');
@@ -119,11 +123,12 @@ function renderPortfolio(user, stocks) {
         portfolioDetails.appendChild(actionEl);
     });
 
+    // Attach the event listener once
     portfolioDetails.addEventListener('click', (event) => {
         if (event.target.tagName === 'BUTTON') {
             viewStock(event.target.id, stocks);
         }
-    });
+    }, { once: true });
 }
 
 /**

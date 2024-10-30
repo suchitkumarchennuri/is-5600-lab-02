@@ -4,68 +4,90 @@ let stocksData;
 
 // Wait for the DOM to load
 document.addEventListener('DOMContentLoaded', () => {
-    stocksData = JSON.parse(stockContent);
-    userData = JSON.parse(userContent);
+    console.log("DOM fully loaded");
 
-    // Generate the user list
-    generateUserList(userData);
+    try {
+        // Check if stockContent and userContent are defined
+        if (typeof stockContent === 'undefined' || typeof userContent === 'undefined') {
+            throw new Error("stockContent or userContent is not defined.");
+        }
+        
+        // Parse and store data
+        stocksData = JSON.parse(stockContent);
+        userData = JSON.parse(userContent);
+        console.log("Data loaded successfully:", { stocksData, userData });
 
-    // Attach event listener to the user list
-    const userList = document.querySelector('.user-list');
-    if (userList) {
-        userList.addEventListener('click', (event) => handleUserListClick(event));
+        // Generate the user list on load
+        if (userData && userData.length > 0) {
+            generateUserList(userData);
+        } else {
+            console.error("No user data available.");
+        }
+    } catch (error) {
+        console.error("Error loading data:", error);
+    }
+
+    // Attach event listeners to save and delete buttons
+    const deleteButton = document.querySelector('#btnDelete');
+    const saveButton = document.querySelector('#btnSave');
+
+    if (!deleteButton || !saveButton) {
+        console.error("Save or Delete button not found in DOM.");
+    } else {
+        console.log("Buttons found, adding event listeners");
+
+        // Delete button functionality
+        deleteButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            const userId = document.querySelector('#userID').value;
+            deleteUser(userId);
+        });
+
+        // Save button functionality
+        saveButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            const userId = document.querySelector('#userID').value;
+            saveUser(userId);
+        });
     }
 });
 
-// Select the delete and save buttons
-const deleteButton = document.querySelector('#btnDelete');
-const saveButton = document.querySelector('#btnSave');
+// Function to delete a user
+function deleteUser(userId) {
+    const userIndex = userData.findIndex(user => user.id == userId);
 
-// Delete button functionality
-if (deleteButton) {
-    deleteButton.addEventListener('click', (event) => {
-        event.preventDefault();
-
-        const userId = document.querySelector('#userID').value;
-        const userIndex = userData.findIndex(user => user.id == userId);
-
-        if (userIndex !== -1) {
-            userData.splice(userIndex, 1);
-            generateUserList(userData);
-
-            // Clear the form and portfolio display
-            clearForm();
-            clearPortfolio();
-        } else {
-            console.error("User not found for deletion.");
-        }
-    });
+    if (userIndex !== -1) {
+        userData.splice(userIndex, 1); // Remove the user from data
+        generateUserList(userData);    // Refresh user list
+        clearForm();                   // Clear the form fields
+        clearPortfolio();              // Clear the portfolio display
+        console.log("User deleted successfully");
+    } else {
+        console.error("User not found for deletion.");
+    }
 }
 
-// Save button functionality
-if (saveButton) {
-    saveButton.addEventListener('click', (event) => {
-        event.preventDefault();
+// Function to save user information
+function saveUser(userId) {
+    const user = userData.find(u => u.id == userId);
 
-        const id = document.querySelector('#userID').value;
-        const user = userData.find(u => u.id == id);
+    if (user) {
+        // Update user details from form inputs
+        user.user.firstname = document.querySelector('#firstname').value;
+        user.user.lastname = document.querySelector('#lastname').value;
+        user.user.address = document.querySelector('#address').value;
+        user.user.city = document.querySelector('#city').value;
+        user.user.email = document.querySelector('#email').value;
 
-        if (user) {
-            user.user.firstname = document.querySelector('#firstname').value;
-            user.user.lastname = document.querySelector('#lastname').value;
-            user.user.address = document.querySelector('#address').value;
-            user.user.city = document.querySelector('#city').value;
-            user.user.email = document.querySelector('#email').value;
-
-            generateUserList(userData);
-        } else {
-            console.error("User not found for saving.");
-        }
-    });
+        generateUserList(userData);  // Refresh user list to show updated info
+        console.log("User information saved successfully");
+    } else {
+        console.error("User not found for saving.");
+    }
 }
 
 /**
- * Generates the user list
+ * Generates the user list and adds event listeners to each user item
  * @param {*} users 
  */
 function generateUserList(users) {
@@ -76,21 +98,27 @@ function generateUserList(users) {
             const listItem = document.createElement('li');
             listItem.innerText = `${user.lastname}, ${user.firstname}`;
             listItem.setAttribute('id', id);
+            listItem.classList.add("user-item");
+            listItem.addEventListener('click', () => handleUserListClick(id)); // Add click event to each item
             userList.appendChild(listItem);
         });
+        console.log("User list generated:", users);
+    } else {
+        console.error("User list element not found.");
     }
 }
 
 /**
- * Handles the click event on the user list
- * @param {*} event 
+ * Handles the click event on a user item and populates the form with that user's data
+ * @param {*} userId 
  */
-function handleUserListClick(event) {
-    const userId = event.target.id;
+function handleUserListClick(userId) {
     const user = userData.find(user => user.id == userId);
     if (user) {
         populateForm(user);
         renderPortfolio(user);
+    } else {
+        console.error("User not found when handling list click.");
     }
 }
 
@@ -106,6 +134,7 @@ function populateForm(data) {
     document.querySelector('#address').value = user.address;
     document.querySelector('#city').value = user.city;
     document.querySelector('#email').value = user.email;
+    console.log("Form populated with user data:", data);
 }
 
 /**
@@ -137,33 +166,12 @@ function renderPortfolio(user) {
         const newPortfolioDetails = portfolioDetails.cloneNode(true);
         portfolioDetails.parentNode.replaceChild(newPortfolioDetails, portfolioDetails);
 
-        // Attach event listener to the portfolio list
         newPortfolioDetails.addEventListener('click', (event) => {
             if (event.target.tagName === 'BUTTON') {
                 viewStock(event.target.id);
             }
         });
-    }
-}
-
-/**
- * Renders the stock information for the symbol
- * @param {*} symbol 
- */
-function viewStock(symbol) {
-    const stockArea = document.querySelector('.stock-form');
-    if (stockArea) {
-        const stock = stocksData.find(s => s.symbol == symbol);
-
-        if (stock) {
-            document.querySelector('#stockName').textContent = stock.name;
-            document.querySelector('#stockSector').textContent = stock.sector;
-            document.querySelector('#stockIndustry').textContent = stock.subIndustry;
-            document.querySelector('#stockAddress').textContent = stock.address;
-            document.querySelector('#logo').src = `logos/${symbol}.svg`;
-        } else {
-            console.error("Stock not found.");
-        }
+        console.log("Portfolio rendered for user:", user);
     }
 }
 
@@ -177,6 +185,7 @@ function clearForm() {
     document.querySelector('#address').value = '';
     document.querySelector('#city').value = '';
     document.querySelector('#email').value = '';
+    console.log("Form cleared.");
 }
 
 /**
@@ -189,6 +198,7 @@ function clearPortfolio() {
     }
     const stockArea = document.querySelector('.stock-form');
     if (stockArea) {
-        stockArea.innerHTML = ''; // Or reset specific fields as needed
+        stockArea.innerHTML = '';
     }
+    console.log("Portfolio cleared.");
 }
